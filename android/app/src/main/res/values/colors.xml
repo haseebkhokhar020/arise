@@ -1,0 +1,15 @@
+<resources>
+    <color name="arise_void">#070A14</color>
+    <color name="arise_surface">#0D1220</color>
+    <color name="arise_surface2">#141B30</color>
+    <color name="arise_core">#7C5CFF</color>
+    <color name="arise_primary">#7C5CFF</color>
+    <color name="arise_accent">#38E1C6</color>
+    <color name="arise_gold">#FFC857</color>
+    <color name="arise_error">#FF5470</color>
+    <color name="arise_text">#EEF1FF</color>
+    <color name="arise_text_dim">#9AA3C0</color>
+    <color name="ic_launcher_background">#0D1220</color>
+    <color name="white">#FFFFFF</color>
+    <color name="transparent">#00000000</color>
+</resources>

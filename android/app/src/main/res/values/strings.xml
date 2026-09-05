@@ -1,0 +1,14 @@
+<resources>
+    <string name="app_name">Arise</string>
+    <string name="settings_title">Arise Settings</string>
+    <string name="accessibility_service_label">Arise control</string>
+    <string name="accessibility_service_description">Lets Arise read the on-screen UI so it can execute commands like sending WhatsApp messages, tapping buttons and typing — only while you are actively using it, never silently. Arise never uploads screen content.</string>
+    <string name="fgs_channel_name">Arise wake-word listening</string>
+    <string name="fgs_channel_desc">Keeps the wake word ready for hands-free use. A microphone indicator is always shown while listening.</string>
+    <string name="fgs_notification_title">Arise is listening for “%1$s”</string>
+    <string name="fgs_notification_text">Tap to open. Microphone in use.</string>
+    <string name="mic_in_use">Microphone in use</string>
+    <string name="stop_listening">Stop listening</string>
+    <string name="settings_open">Open settings</string>
+    <string name="arise_yes">Yes?</string>
+</resources>

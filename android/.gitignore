@@ -1,0 +1,15 @@
+# Gradle / Android
+.gradle/
+build/
+.idea/
+*.iml
+local.properties
+.kotlin/
+captures/
+.cxx/
+*.apk
+*.aab
+*.keystore
+!debug.keystore
+app/release/
+output-metadata.json

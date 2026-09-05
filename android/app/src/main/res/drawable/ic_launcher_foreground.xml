@@ -1,0 +1,29 @@
+<!-- Arise mark: rising core + orbital sparks, safe zone ~66dp centered in 108dp viewport -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- soft outer halo -->
+    <path
+        android:fillColor="#33FFFFFF"
+        android:pathData="M54,26 a28,28 0 1,0 0.001,0 z" />
+    <!-- ring -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#38E1C6"
+        android:strokeWidth="2.6"
+        android:pathData="M54,24 a30,30 0 1,0 0.001,0 z" />
+    <!-- core orb -->
+    <path
+        android:fillColor="#7C5CFF"
+        android:pathData="M54,31 a23,23 0 1,0 0.001,0 z" />
+    <!-- 4-point spark, gold -->
+    <path
+        android:fillColor="#FFC857"
+        android:pathData="M68,28 l1.4,4.6 L74,34 l-4.6,1.4 L68,40 l-1.4,-4.6 L62,34 l4.6,-1.4 Z" />
+    <!-- small lower-left spark, mint -->
+    <path
+        android:fillColor="#38E1C6"
+        android:pathData="M38,76 l1.1,3.6 L42.7,80.7 l-3.6,1.1 L38,85.4 l-1.1,-3.6 L33.3,80.7 l3.6,-1.1 Z" />
+</vector>
