@@ -25,3 +25,6 @@ Thumbs.db
 
 # Release APK artifact (not committed)
 apk/
+
+# Release signing keys (never commit)
+keystore/
