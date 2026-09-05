@@ -9,6 +9,7 @@ import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.Typeface
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.view.Gravity
 import android.view.View
@@ -23,11 +24,14 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
+import com.arise.assistant.ai.ModelTier
+import com.arise.assistant.ai.OpenAiCompatibleClient
 import com.arise.assistant.billing.BillingManager
 import com.arise.assistant.engine.AriseEngine
 import com.arise.assistant.log.LocalLog
 import com.arise.assistant.service.AriseForegroundService
 import com.arise.assistant.settings.Settings
+import com.arise.assistant.util.SelfTest
 import kotlinx.coroutines.launch
 import java.util.Locale
 
@@ -110,16 +114,32 @@ class SettingsActivity : AppCompatActivity() {
         sliderRow("Follow-up window", settings.followUpTimeoutSec.toFloat(), 0f..30f, 1f, "%.0f s") { settings.followUpTimeoutSec = it.toInt() }
 
         // ============ AI ============
-        addSection("Cloud AI (complex tasks)")
-        chipsRow("Provider", listOf("openai" to "OpenAI", "custom" to "Custom", "local" to "Local model"),
-            settings.aiProvider) { settings.aiProvider = it }
-        textRow("Endpoint", settings.aiEndpoint) { v -> if (v.isNotBlank()) settings.aiEndpoint = v else toast("Empty endpoint ignored") }
-        textRow("API key", if (settings.aiApiKey.isEmpty()) "(empty)" else "••••••••", secret = true) { v -> settings.aiApiKey = v }
-        textRow("Fast model", settings.aiFastModel) { v -> if (v.isNotBlank()) settings.aiFastModel = v }
-        textRow("Powerful model", settings.aiPowerModel) { v -> if (v.isNotBlank()) settings.aiPowerModel = v }
+        addSection("Cloud AI · pick your provider")
+        addNote("Only complex questions & advanced phone actions use the cloud — everyday commands run offline on your phone. Choose a provider and paste its API key. No endpoint or model names to type.")
+        for (p in com.arise.assistant.settings.AiPresets.all) {
+            val active = settings.aiProvider == p.id
+            val row = actionRow("${if (active) "✓ ACTIVE — " else ""}${p.label} · ${p.tagline}") {
+                settings.applyAiPreset(p.id)
+                engine.reloadAi()
+                toast("${p.label} selected — paste its API key below")
+                rebuild()
+            }
+            row.setTextColor(if (active) 0xFF38E1C6.toInt() else 0xFFEEF1FF.toInt())
+            row.setTypeface(null, if (active) Typeface.BOLD else Typeface.NORMAL)
+        }
+        addSpace(6)
+        addNote("Active: ${settings.aiProviderLabel()}\nEndpoint: ${settings.aiEndpoint}\nFast: ${settings.aiFastModel} · Powerful: ${settings.aiPowerModel}")
+        textRow("API key", if (settings.aiApiKey.isEmpty()) "(empty)" else "••••••••", secret = true) { v ->
+            settings.aiApiKey = v
+            engine.reloadAi()
+            toast("Key saved — tap “Test cloud connection” to confirm")
+        }
         sliderRow("Temperature", settings.aiTemperature, 0f..1f, 0.05f, "%.2f") { settings.aiTemperature = it }
         toggleRow("Route simple commands locally", settings.aiRoutingEnabled,
             "Fast, private, offline routing for things like “open YouTube”. Cloud is only used when needed.") { settings.aiRoutingEnabled = it }
+        actionRow("Test cloud connection") {
+            lifecycleScopeLaunch { testCloudConnection() }
+        }
         addNote("The API key is stored only on this device (Android encrypted storage) and never uploaded anywhere else.")
 
         // ============ SPEAKER ============
@@ -198,6 +218,9 @@ class SettingsActivity : AppCompatActivity() {
             LocalLog.enabled = v
         }
         toggleRow("Anonymous diagnostics", settings.telemetryOptIn, "Opt-in aggregate stats only (device model, latency percentiles). Never content.") { settings.telemetryOptIn = it }
+        actionRow("Run diagnostics — find why something isn’t working") {
+            lifecycleScopeLaunch { showDiagnostics() }
+        }
         actionRow("Export local log (share file)") {
             LocalLog.dumpToFile(this)?.let { f ->
                 val i = Intent(Intent.ACTION_SEND).apply {
@@ -278,6 +301,45 @@ class SettingsActivity : AppCompatActivity() {
                 else toast("Microphone granted")
             } else toast("Microphone permission is required for voice features")
         }
+
+    /** Runs on-device checks and shows a readable report of what is/isn't working. */
+    private suspend fun showDiagnostics() {
+        runOnUiThread { toast("Running checks…") }
+        val res = SelfTest.run(this, settings)
+        val sb = StringBuilder()
+        sb.append("Arise ").append(com.arise.assistant.util.Util.versionName(this))
+        sb.append(" · Android ").append(Build.VERSION.RELEASE)
+        sb.append(" · ").append(Build.MANUFACTURER).append(' ').append(Build.MODEL).append('\n')
+        for (r in res) {
+            sb.append("\n").append(if (r.ok) "✓" else "✗").append("  ").append(r.name)
+            sb.append("\n     ").append(r.detail)
+        }
+        LocalLog.i("Diag", res.filter { !it.ok }.joinToString(" | ") { "${it.name}: ${it.detail}" })
+        runOnUiThread {
+            AlertDialog.Builder(this)
+                .setTitle("Diagnostics")
+                .setMessage(sb.toString())
+                .setPositiveButton("Close", null)
+                .show()
+        }
+    }
+
+    /** Live round-trip against the currently saved provider/key using the fast model. */
+    private suspend fun testCloudConnection() {
+        if (settings.aiEndpoint.isBlank()) { toast("Choose a provider first"); return }
+        if (settings.aiApiKey.isBlank()) { toast("Paste the API key first"); return }
+        runOnUiThread { toast("Testing connection…") }
+        val client = OpenAiCompatibleClient(this, settings)
+        val res = client.complete(
+            system = "Reply with exactly one word: OK",
+            turns = listOf(com.arise.assistant.ai.ChatTurn("user", "ping")),
+            tier = ModelTier.FAST,
+            temperature = 0f
+        )
+        val msg = if (res.ok) "Connected ✓ (${res.model})" else "Failed: ${res.error}"
+        runOnUiThread { toast(msg) }
+        LocalLog.i("AI", msg)
+    }
 
     private fun lifecycleScopeLaunch(block: suspend () -> Unit) {
         lifecycleScope.launch { block() }

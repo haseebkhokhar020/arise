@@ -34,7 +34,7 @@ WAKE → LOGO → VERIFY(optional) → UNDERSTAND → ROUTE → EXECUTE → VERI
   1. **Native Android** — open apps, volume, flashlight, brightness, alarms, notifications, device status (official APIs + intents).
   2. **App integrations** — WhatsApp (deep-link pre-fill → accessibility press-send), SMS (native `SmsManager`, verified by delivery report), calls (dialer only — Arise never places silent calls), email (compose), browser search, web weather (Open-Meteo, no key).
   3. **Universal agent** — an `AccessibilityService` reads the UI tree and can click, long-click, type, scroll, swipe, Back/Home, take screenshots only on explicit commands. Screen contents never leave the device.
-- **AIProvider abstraction** — OpenAI-compatible endpoints (OpenAI, OpenRouter, Groq, Together, Azure, Ollama/LM-Studio as “local”), fast + powerful model tiers, structured tool-call JSON. Simple commands bypass AI entirely.
+- **AIProvider abstraction** — pick one of three built-in providers (Google Gemini, OpenAI, Groq) and paste only its API key — endpoint + fast/powerful models are pre-filled. Simple commands bypass AI entirely (cloud only when needed).
 - **Tool registry** with parameter validation, capability checks, honest status (`SUCCESS/PARTIAL/BLOCKED/NO_PERMISSION/FAILED/CANCELLED`) and *no* false success.
 - **Dimensional logo** — pure-Canvas, hardware-accelerated glass orb with depth, particles, parallax, per-state motion (Idle/Wake/Verify/Ack/Listen/Process/Speak/Confirm/Success/Error), voice-reactive levels, quality & reduced-motion settings, automatic battery-saving fallback.
 - **Latency instrumentation** — wake/STT/AI/exec/verify/response breakdowns on the debug panel and in local logs.

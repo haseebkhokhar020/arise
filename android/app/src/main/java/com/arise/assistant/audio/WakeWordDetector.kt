@@ -9,7 +9,6 @@ import android.os.Handler
 import android.os.Looper
 import android.os.Process
 import com.arise.assistant.log.LocalLog
-
 /**
  * Lightweight wake-word listener.
  *
@@ -60,6 +59,8 @@ class WakeWordDetector(
     @SuppressLint("MissingPermission")
     private fun loop() {
         LocalLog.i("Wake", "listening thread up (rate=$sampleRate)")
+        // settle briefly so a previous listener (or recognizer) has fully released the mic
+        try { Thread.sleep(350) } catch (_: InterruptedException) { return }
         var record: AudioRecord? = null
         var cooldownUntil = 0L
         var floorDb = -45f // adaptive noise floor

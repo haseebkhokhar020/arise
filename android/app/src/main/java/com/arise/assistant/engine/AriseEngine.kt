@@ -23,6 +23,7 @@ import com.arise.assistant.tools.InfoExecutors
 import com.arise.assistant.tools.MessagingExecutors
 import com.arise.assistant.tools.NativeExecutors
 import com.arise.assistant.tools.ToolRegistry
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -48,7 +49,11 @@ class AriseEngine(private val appContext: Context) {
 
     private val settings = Settings(appContext)
     private val parser = IntentParser()
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    // Crash shield: no internal failure may ever kill the app. Any exception inside
+    // engine coroutines lands here, is logged, surfaced, and Arise recovers to sleep.
+    private val scope = CoroutineScope(
+        SupervisorJob() + Dispatchers.Main + CoroutineExceptionHandler { _, t -> onInternalError(t) }
+    )
     private val capture = SpeechCapture(appContext)
     private val speech: SpeechManager
     val verifier = SpeakerVerifier(appContext, settings)
@@ -134,6 +139,9 @@ class AriseEngine(private val appContext: Context) {
         }).also { it.start() }
     }
 
+    /** Drop the cached AI client so the next cloud call re-reads settings (endpoint/key/model). */
+    fun reloadAi() { ai = null }
+
     fun stopWakeListener() {
         wake?.stop()
         wake = null
@@ -149,11 +157,20 @@ class AriseEngine(private val appContext: Context) {
             return
         }
         scope.launch {
+            stopWakeNow()          // free the mic held by the wake VAD before recording
             stopCaptureIfAny()
             if (micState) return@launch
             awaitingWake = false
             wakeToAwakeSequence()
         }
+    }
+
+    /** Stop & drop the wake listener thread so the mic is free for a recognizer session. */
+    private fun stopWakeNow() {
+        try {
+            wake?.stop()
+            wake = null
+        } catch (_: Throwable) {}
     }
 
     fun stopEverything() {
@@ -258,6 +275,7 @@ class AriseEngine(private val appContext: Context) {
 
     private suspend fun wakeToAwakeSequence() {
         busy = true
+        stopWakeNow() // the VAD thread normally ends itself; guarantee no mic conflict
         updatePhase(ArisePhase.ACK, AgentState.AWAITING_COMMAND, status = "Listening…")
         if (settings.ttsSayWakeReply && settings.ttsEnabled) speech.speak("Yes?")
         else patch { copy(phase = ArisePhase.LISTENING) }
@@ -328,6 +346,27 @@ class AriseEngine(private val appContext: Context) {
         if (trimmed.isEmpty()) { finishToSleep(); return }
         addChat(ChatItem("user", trimmed))
         routeText(trimmed)
+    }
+
+    /** Never let an internal failure kill the app: log it, tell the user, recover to sleep. */
+    private fun onInternalError(t: Throwable) {
+        try {
+            LocalLog.e("Engine", "recovered from error: ${t.javaClass.simpleName}: ${t.message}")
+            LocalLog.e("Engine", android.util.Log.getStackTraceString(t))
+            awaitingWake = false
+            busy = false
+            micState = false
+            capture.destroy()
+            speech.stop()
+            addChat(ChatItem("system", "Something went wrong inside — Arise recovered. Check Settings → Diagnostics."))
+            patch {
+                copy(error = (t.message ?: t.javaClass.simpleName).take(140),
+                    phase = ArisePhase.ERROR, micInUse = false, audioLevel = 0f, confirmQuestion = null)
+            }
+            restartWakeListener()
+        } catch (_: Throwable) {
+            // last resort: keep the app alive even if recovery itself fails
+        }
     }
 
     private fun handleCaptureError(code: Int, message: String) {
@@ -525,11 +564,7 @@ class AriseEngine(private val appContext: Context) {
     private suspend fun handleCloud(text: String, power: Boolean) {
         updatePhase(ArisePhase.PROCESSING, AgentState.BUSY, status = "Thinking…")
         latency.mark("ai")
-        val provider = ai ?: run {
-            speech.speak("Cloud AI isn't configured. Add an AI provider in Settings, or ask me something I can do on the phone.")
-            finishToSleep()
-            return
-        }
+        val provider = ai ?: OpenAiCompatibleClient(appContext, settings).also { ai = it }
         if (!provider.isConfigured()) {
             speech.speak("I need an AI provider configured for that. It's in Settings under AI provider.")
             finishToSleep()

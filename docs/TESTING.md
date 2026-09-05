@@ -43,3 +43,17 @@ Run: `cd admin && .venv/bin/python -m pytest server/tests -q`
 7. Confirm-mode sensitive command (delete, money) requires yes/no on screen.
 8. Toggle AI provider in settings; send an out-of-rule question → falls back to provider.
 9. Battery: idle with hands-free on drains ≈ idle (VAD gate only, no recognizer running).
+
+## v0.2.0 hardening & diagnostics (2026)
+
+- **Crash shield:** every engine coroutine now routes failures to a recovery handler
+  (logs + recovers to sleep) instead of killing the app; `SpeechCapture` and
+  `SpeechManager` never throw, check availability first, and ignore stale callbacks;
+  the wake VAD and speaker-recording paths release the mic safely. Any leftover issue
+  is reported in-app rather than as a force-close.
+- **AI setup simplified:** Settings → “Cloud AI” shows three presets — Google Gemini,
+  OpenAI, Groq. Selecting one pre-fills endpoint + models; the user only pastes an API
+  key and can tap “Test cloud connection”.
+- **Diagnostics:** Settings → “Run diagnostics” reports, in plain language: microphone
+  permission, Google speech service presence, TTS engine, internet, cloud-AI setup,
+  notification permission, accessibility state — plus device/Android/version line.

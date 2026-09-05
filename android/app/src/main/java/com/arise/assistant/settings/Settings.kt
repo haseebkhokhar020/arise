@@ -111,6 +111,19 @@ class Settings(context: Context) {
         get() = sp.getBoolean(KEY_AI_ROUTING, true)
         set(v) = sp.edit().putBoolean(KEY_AI_ROUTING, v).apply()
 
+    // ---- AI presets (3 built-in providers; only the API key is user-entered) ----
+    /** Applies a preset's endpoint + fast/power models and sets [aiProvider] to its id. */
+    fun applyAiPreset(presetId: String) {
+        val p = AiPresets.get(presetId) ?: return
+        aiProvider = p.id
+        aiEndpoint = p.endpoint
+        aiFastModel = p.fast
+        aiPowerModel = p.power
+    }
+
+    /** Human label for the current provider (falls back to the endpoint host). */
+    fun aiProviderLabel(): String = AiPresets.get(aiProvider)?.label ?: "Custom endpoint"
+
     // ---- Logo / animation ------------------------------------------------
     var logoAnimationEnabled: Boolean
         get() = sp.getBoolean(KEY_LOGO_ANIM, true)
@@ -259,4 +272,49 @@ class Settings(context: Context) {
         const val KEY_FEATURE_FLAGS = "feature_flags"
         const val KEY_PRIV_BRIEF = "priv_brief"
     }
+}
+
+/**
+ * The three built-in cloud providers. Every preset is OpenAI-compatible, so the
+ * same app code works against all of them — the user only ever enters an API key.
+ */
+object AiPresets {
+
+    data class Preset(
+        val id: String,
+        val label: String,
+        val tagline: String,
+        val endpoint: String,
+        val fast: String,
+        val power: String
+    )
+
+    val all: List<Preset> = listOf(
+        Preset(
+            id = "gemini",
+            label = "Google Gemini",
+            tagline = "Free tier · no credit card · generous daily limit",
+            endpoint = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+            fast = "gemini-2.5-flash",
+            power = "gemini-2.5-flash"
+        ),
+        Preset(
+            id = "openai",
+            label = "OpenAI",
+            tagline = "GPT-4 class · pay-as-you-go",
+            endpoint = "https://api.openai.com/v1/chat/completions",
+            fast = "gpt-4o-mini",
+            power = "gpt-4o"
+        ),
+        Preset(
+            id = "groq",
+            label = "Groq",
+            tagline = "Ultra-fast open models · free tier",
+            endpoint = "https://api.groq.com/openai/v1/chat/completions",
+            fast = "llama-3.1-8b-instant",
+            power = "openai/gpt-oss-120b"
+        )
+    )
+
+    fun get(id: String): Preset? = all.firstOrNull { it.id == id }
 }
