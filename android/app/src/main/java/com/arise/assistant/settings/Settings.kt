@@ -88,7 +88,11 @@ class Settings(context: Context) {
         set(v) = sp.edit().putString(KEY_AI_PROVIDER, v).apply()
 
     var aiEndpoint: String
-        get() = sp.getString(KEY_AI_ENDPOINT, "https://api.openai.com/v1/chat/completions")!!
+        get() {
+            // A preset-backed provider always uses the preset's (current) endpoint.
+            val p = AiPresets.get(aiProvider)
+            return p?.endpoint ?: sp.getString(KEY_AI_ENDPOINT, "https://api.openai.com/v1/chat/completions")!!
+        }
         set(v) = sp.edit().putString(KEY_AI_ENDPOINT, v.trim()).apply()
 
     var aiApiKey: String
@@ -96,11 +100,17 @@ class Settings(context: Context) {
         set(v) = sp.edit().putString(KEY_AI_KEY, v.trim()).apply()
 
     var aiFastModel: String
-        get() = sp.getString(KEY_AI_FAST_MODEL, "gpt-4o-mini")!!
+        get() {
+            val p = AiPresets.get(aiProvider)
+            return p?.fast ?: sp.getString(KEY_AI_FAST_MODEL, "gpt-4o-mini")!!
+        }
         set(v) = sp.edit().putString(KEY_AI_FAST_MODEL, v.trim()).apply()
 
     var aiPowerModel: String
-        get() = sp.getString(KEY_AI_POWER_MODEL, "gpt-4o")!!
+        get() {
+            val p = AiPresets.get(aiProvider)
+            return p?.power ?: sp.getString(KEY_AI_POWER_MODEL, "gpt-4o")!!
+        }
         set(v) = sp.edit().putString(KEY_AI_POWER_MODEL, v.trim()).apply()
 
     var aiTemperature: Float
@@ -295,16 +305,16 @@ object AiPresets {
             label = "Google Gemini",
             tagline = "Free tier · no credit card · generous daily limit",
             endpoint = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
-            fast = "gemini-2.5-flash",
-            power = "gemini-2.5-flash"
+            fast = "gemini-3.6-flash",
+            power = "gemini-3.6-flash"
         ),
         Preset(
             id = "openai",
             label = "OpenAI",
-            tagline = "GPT-4 class · pay-as-you-go",
+            tagline = "GPT-5 class · pay-as-you-go",
             endpoint = "https://api.openai.com/v1/chat/completions",
-            fast = "gpt-4o-mini",
-            power = "gpt-4o"
+            fast = "gpt-5-nano",
+            power = "gpt-5-pro"
         ),
         Preset(
             id = "groq",
