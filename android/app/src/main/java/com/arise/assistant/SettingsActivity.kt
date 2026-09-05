@@ -36,10 +36,10 @@ import kotlinx.coroutines.launch
 import java.util.Locale
 
 /**
- * Settings — one scrollable surface covering AI, voice, wake word, speaker
- * verification, logo/animation, behaviour, privacy, permissions, accessibility,
- * performance, debugging, subscription and about. Every row explains itself in
- * plain language (permission clarity is a product requirement).
+ * Settings — one scrollable surface covering AI, voice, wake word, logo/animation,
+ * behaviour, privacy, permissions, accessibility, performance, debugging,
+ * subscription and about. Every row explains itself in plain language
+ * (permission clarity is a product requirement).
  */
 class SettingsActivity : AppCompatActivity() {
 
@@ -48,7 +48,6 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var root: LinearLayout
     private var rootScroll: ScrollView? = null
     private var billing: BillingManager? = null
-    private var pendingEnroll = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -142,29 +141,6 @@ class SettingsActivity : AppCompatActivity() {
         }
         addNote("The API key is stored only on this device (Android encrypted storage) and never uploaded anywhere else.")
 
-        // ============ SPEAKER ============
-        addSection("Speaker verification (optional)")
-        toggleRow("Check speaker after wake", settings.speakerVerifyEnabled,
-            "Optional convenience layer. NOT a secure biometric — the wake mic can't guarantee identity. Audio never leaves the device.") { v ->
-            settings.speakerVerifyEnabled = v
-            if (v && !engine.isSpeakerEnrolled()) toast("Enroll your voice below first")
-        }
-        actionRow(if (engine.isSpeakerEnrolled()) "Re-enroll your voice (speak ~4s)" else "Enroll your voice (speak ~4s)") {
-            if (!micGranted()) { pendingEnroll = true; micPermLauncher.launch(Manifest.permission.RECORD_AUDIO); return@actionRow }
-            lifecycleScopeLaunch { enroll() }
-        }
-        actionRow("Test verification") {
-            if (!micGranted()) { pendingEnroll = false; micPermLauncher.launch(Manifest.permission.RECORD_AUDIO); return@actionRow }
-            lifecycleScopeLaunch {
-                val r = engine.verifySpeakerNow()
-                toast(if (r.accepted) "Match (${"%.2f".format(r.score)})" else "No match (${"%.2f".format(r.score)})")
-            }
-        }
-        if (engine.isSpeakerEnrolled()) {
-            actionRow("Delete voice profile", danger = true) { engine.clearSpeakerProfile(); toast("Profile deleted"); rebuild() }
-        }
-        sliderRow("Verification sensitivity", settings.speakerSensitivity, 0.2f..0.95f, 0.05f, "%.2f") { settings.speakerSensitivity = it }
-
         // ============ LOGO ============
         addSection("Arise logo & motion")
         chipsRow("Theme", listOf("violet" to "Violet", "ocean" to "Ocean", "sunset" to "Sunset", "mono" to "Mono"),
@@ -190,7 +166,7 @@ class SettingsActivity : AppCompatActivity() {
 
         // ============ PERMISSIONS ============
         addSection("Permissions (explained)")
-        permissionRow("Microphone", Manifest.permission.RECORD_AUDIO, "Needed for wake word, voice commands and TTS verification.")
+        permissionRow("Microphone", Manifest.permission.RECORD_AUDIO, "Needed so Arise can hear your voice commands. It is only used while you are talking to Arise.")
         permissionRow("Notifications", Manifest.permission.POST_NOTIFICATIONS, "Shows the persistent “listening” indicator while hands-free is on.")
         permissionRow("Contacts", Manifest.permission.READ_CONTACTS, "Lets “send Ali a WhatsApp” find Ali’s number. Only queried on device.")
         permissionRow("Send SMS", Manifest.permission.SEND_SMS, "Required by Android to send a text directly. Without it Arise opens the compose screen instead.")
@@ -285,21 +261,10 @@ class SettingsActivity : AppCompatActivity() {
         }
     }
 
-    private suspend fun enroll() {
-        runOnUiThread { toast("Speak naturally for about 4 seconds…") }
-        val id = engine.enrollSpeakerNow(4.0)
-        runOnUiThread {
-            if (id >= 0) { toast("Voice profile created (id $id)"); rebuild() }
-            else toast("Enrollment failed — say something clearly, or check the microphone permission")
-        }
-    }
-
     private val micPermLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-            if (granted) {
-                if (pendingEnroll) { pendingEnroll = false; lifecycleScopeLaunch { enroll() } }
-                else toast("Microphone granted")
-            } else toast("Microphone permission is required for voice features")
+            if (granted) toast("Microphone granted — now you can use voice")
+            else toast("Microphone permission is required for voice features")
         }
 
     /** Runs on-device checks and shows a readable report of what is/isn't working. */

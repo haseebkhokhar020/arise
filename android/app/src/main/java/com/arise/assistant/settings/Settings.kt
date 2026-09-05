@@ -50,10 +50,11 @@ class Settings(context: Context) {
         get() = sp.getBoolean(KEY_BRIEF_MODE, true)
         set(v) = sp.edit().putBoolean(KEY_BRIEF_MODE, v).apply()
 
-    // ---- Speaker verification (optional convenience layer) --------------
+    // ---- Speaker verification (removed feature — kept field for clean rollback) ----
+    // Always off: no "specific voice" enrollment is ever required to use Arise.
     var speakerVerifyEnabled: Boolean
-        get() = sp.getBoolean(KEY_SPEAKER_VERIFY, false)
-        set(v) = sp.edit().putBoolean(KEY_SPEAKER_VERIFY, v).apply()
+        get() = false
+        set(v) { sp.edit().putBoolean(KEY_SPEAKER_VERIFY, false).apply() }
 
     var speakerSensitivity: Float  // 0..1 decision threshold proximity
         get() = sp.getFloat(KEY_SPEAKER_SENSITIVITY, 0.55f)
