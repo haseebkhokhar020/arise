@@ -467,6 +467,11 @@ class AriseEngine(private val appContext: Context) {
             "call_contact" -> tool("call_contact", p)
             "control_media" -> tool("control_media", p)
             "change_volume" -> tool("change_volume", p)
+            "play_on_youtube" -> {
+                val song = p["song"]?.trim().orEmpty()
+                if (song.isNotEmpty()) tool("play_on_youtube", mapOf("song" to song))
+                else RouteResult.Replies("What song would you like me to play on YouTube?")
+            }
             "control_flashlight" -> tool("control_flashlight", p)
             "set_alarm" -> tool("set_alarm", p)
             "set_timer" -> tool("set_alarm", p) // clock handles timers via same intent screen fallback
@@ -683,6 +688,7 @@ class AriseEngine(private val appContext: Context) {
 
     private fun humanTask(tool: String, args: Map<String, String>): String = when (tool) {
         "send_whatsapp_message" -> "Message ${args["contact"]} on WhatsApp"
+        "play_on_youtube" -> "Play “${args["song"]}” on YouTube"
         "open_app" -> "Open ${args["app"]}"
         "search_web" -> "Search ${args["query"]}"
         else -> tool.replace('_', ' ')

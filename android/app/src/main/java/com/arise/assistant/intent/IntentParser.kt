@@ -87,7 +87,7 @@ class IntentParser {
         Rule(re("\\b(?:send|message)\\s+(?<who>.+?)\\s+(?:an?\\s+|via\\s+)?whatsapp(?:\\s+message)?\\s+(?:saying|that says|that|telling)\\s+(?<msg>.+?)\\s*$"), { m ->
             whatsapp(capture(m, "who"), capture(m, "msg"), m.value)
         }),
-        Rule(re("\\bsend\\s+(?:an?\\s+)?whatsapp\\s+to\\s+(?<who>.+?)\\s+(?:saying|that says|that)\\s+(?<msg>.+?)\\s*$"), { m ->
+        Rule(re("\\bsend\\s+(?:an?\\s+)?whatsapp(?:\\s+message)?\\s+to\\s+(?<who>.+?)\\s+(?:saying|that says|that)\\s+(?<msg>.+?)\\s*$"), { m ->
             whatsapp(capture(m, "who"), capture(m, "msg"), m.value)
         }),
         Rule(re("\\bwhatsapp\\s+(?<who>.+?)\\s+(?:saying|that says|that)\\s+(?<msg>.+?)\\s*$"), { m ->
@@ -95,6 +95,11 @@ class IntentParser {
         }),
         Rule(re("\\bwhatsapp\\s+(?<who>.+?)\\s*$"), { m ->
             whatsapp(capture(m, "who"), null, m.value)
+        }),
+
+        // ---- WhatsApp: "send <message> to <contact> on whatsapp" ----
+        Rule(re("\\bsend\\s+(?:a\\s+|an\\s+|the\\s+|me\\s+(?:a\\s+|an\\s+)?)?(?<msg>.+)\\s+to\\s+(?<who>.+?)\\s+(?:on|via|using|through|in)\\s+(?:the\\s+)?whatsapp\\s*$"), { m ->
+            whatsapp(capture(m, "who"), stripTrailingMessage(capture(m, "msg")), m.value, 0.92f)
         }),
 
         // ---- SMS: explicit text/sms phrasings ----
@@ -118,6 +123,11 @@ class IntentParser {
         // ---- calls ----
         Rule(re("\\bcall\\s+(?<who>.+?)\\s*$"), { m ->
             ParsedIntent("call_contact", params = mapOf("contact" to cleanContact(capture(m, "who")!!)), rawText = m.value)
+        }),
+
+        // ---- "play <song> on YouTube" (must precede generic media play) ----
+        Rule(re("\\b(?:play|put on|start)\\s+(?<song>.+?)\\s+on\\s+(?:the\\s+)?(?:youtube|yt)(?:\\s+app)?\\s*$"), { m ->
+            ParsedIntent("play_on_youtube", params = mapOf("song" to (songName(capture(m, "song")) ?: "")), rawText = m.value)
         }),
 
         // ---- media & volume ----
@@ -208,6 +218,22 @@ class IntentParser {
         Rule(re("\\b(?:who|what|why|how|where|when|tell me|can you|will you|is it)\\b"), { ParsedIntent("ask_question", needsModel = true, rawText = it.value) }),
         Rule(re("\\b(?:thank you|thanks)\\b"), { ParsedIntent("acknowledge", rawText = it.value) })
     )
+
+    /** "send hi message to Ali …" → message text is "hi". */
+    private fun stripTrailingMessage(raw: String?): String? {
+        val b = cleanMsg(raw ?: return null)
+        if (b.isEmpty()) return null
+        val v = b.replace(Regex("\\s+message$", RegexOption.IGNORE_CASE), "").trim()
+        return v.ifEmpty { null }
+    }
+
+    /** Turn a spoken "play <something> song on youtube" into a clean query. */
+    private fun songName(raw: String?): String? {
+        var v = cleanMsg(raw ?: return null)
+        v = v.replace(Regex("\\s+(?:song|track)$", RegexOption.IGNORE_CASE), "").trim()
+        v = v.replace(Regex("^(?:the|a|an|this|that|some)\\s+", RegexOption.IGNORE_CASE), "").trim()
+        return v.ifEmpty { null }
+    }
 
     private fun whatsapp(who: String?, msg: String?, raw: String, conf: Float = 0.95f): ParsedIntent? {
         if (who == null) return null

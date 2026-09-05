@@ -65,4 +65,38 @@ class IntentParserTest {
         assertEquals("change_volume", p.parse("turn the volume down")!!.intent)
         assertEquals("change_volume", p.parse("set volume to 70 percent")!!.intent)
     }
+
+    @Test fun sendMessageToContactOnWhatsApp() {
+        val i = p.parse("send hi message to ali on whatsapp")!!
+        assertEquals("send_whatsapp_message", i.intent)
+        assertEquals("ali", i.params["contact"])
+        assertEquals("hi", i.params["message"])
+    }
+
+    @Test fun sendMessageToContactViaWhatsAppNoOn() {
+        val i = p.parse("send see you soon to sarah via whatsapp")!!
+        assertEquals("send_whatsapp_message", i.intent)
+        assertEquals("sarah", i.params["contact"])
+        assertEquals("see you soon", i.params["message"])
+    }
+
+    @Test fun sendWhatsappMessageToContactSaying() {
+        val i = p.parse("send a whatsapp message to ali saying i am on my way")!!
+        assertEquals("send_whatsapp_message", i.intent)
+        assertEquals("ali", i.params["contact"])
+        assertTrue(i.params["message"]!!.contains("on my way"))
+    }
+
+    @Test fun playSongOnYouTube() {
+        val i = p.parse("play despacito on youtube")!!
+        assertEquals("play_on_youtube", i.intent)
+        assertEquals("despacito", i.params["song"])
+    }
+
+    @Test fun playSongTitleOnYouTube() {
+        val i = p.parse("play shape of you song on youtube")!!
+        assertEquals("play_on_youtube", i.intent)
+        assertEquals("shape of you", i.params["song"])
+    }
+
 }

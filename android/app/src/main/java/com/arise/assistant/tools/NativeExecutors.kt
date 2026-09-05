@@ -29,6 +29,7 @@ object NativeExecutors {
         ToolSpec("close_app", "Close/leave the current app and return home", "app: optional app name") { a -> closeApp(a) },
         ToolSpec("launch_url", "Open a web URL in the browser", "url: full http(s) URL (required)") { a -> launchUrl(a) },
         ToolSpec("search_web", "Search the web (opens results in the browser)", "query: search text (required)") { a -> searchWeb(a) },
+        ToolSpec("play_on_youtube", "Open YouTube and search a song so it can be played", "song: song or video name (required)") { a -> playOnYouTube(a) },
         ToolSpec("get_current_app", "Report which app is in the foreground", "") { _ -> currentApp() },
         ToolSpec("open_notifications", "Open the notification shade", "") { _ -> openNotifications() },
         ToolSpec("control_media", "Play/pause/next/previous/mute media", "action: play|pause|next|previous|mute|unmute (required)") { a -> controlMedia(a) },
@@ -101,6 +102,37 @@ object NativeExecutors {
         delay(600)
         return okResult("search_web", "Searching for “$q”", output = q)
     }
+    private suspend fun AgentContext.playOnYouTube(args: Map<String, String>): ToolResult {
+        args.req("play_on_youtube", "song")?.let { return it }
+        if (!settings.allowExternalActions) return blockedResult("play_on_youtube", "Opening links is disabled in Settings")
+        val song = args["song"]!!.trim()
+        if (song.isEmpty()) return failResult("play_on_youtube", "I need a song name to search on YouTube")
+        val url = "https://www.youtube.com/results?search_query=" + Uri.encode(song)
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        val ytPkg = "com.google.android.youtube"
+        val ytInstalled = runCatching { ctx.packageManager.getLaunchIntentForPackage(ytPkg) != null }.getOrDefault(false)
+        if (ytInstalled) intent.setPackage(ytPkg) // open inside the YouTube app, not the browser
+        if (intent.resolveActivity(ctx.packageManager) == null) {
+            return failResult("play_on_youtube", "No YouTube or browser is available to play “$song”")
+        }
+        progress("Searching YouTube for “$song”…")
+        val access = access
+        val before = access?.currentPackage
+        ctx.startActivity(intent)
+        if (access != null) {
+            var moved = false
+            repeat(10) {
+                delay(250)
+                val now = access.currentPackage
+                if (now != null && now != "com.arise.assistant" && now != before) { moved = true; return@repeat }
+            }
+            if (moved) return okResult("play_on_youtube", "Opened YouTube for “$song” — tap the video to play it", output = url)
+            return partialResult("play_on_youtube", "Launched YouTube for “$song” but I can't confirm the screen yet")
+        }
+        delay(600)
+        return okResult("play_on_youtube", "Opened YouTube for “$song” — tap the video to play it", output = url)
+    }
+
 
     private suspend fun AgentContext.currentApp(): ToolResult {
         val label = access?.currentAppLabel()
